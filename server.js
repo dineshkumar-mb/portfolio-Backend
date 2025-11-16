@@ -110,8 +110,6 @@
 // app.listen(PORT, () => {
 //   console.log(`✅ Server running on http://localhost:${PORT} (PORT ${PORT})`);
 // });
-
-
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -121,10 +119,19 @@ dotenv.config();
 
 const app = express();
 
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || "*";
+const allowedOrigins = process.env.FRONTEND_ORIGIN
+  ? process.env.FRONTEND_ORIGIN.split(",").map(origin => origin.trim())
+  : ["*"];
+
 app.use(
   cors({
-    origin: FRONTEND_ORIGIN,
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     methods: ["GET", "POST", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
@@ -197,7 +204,6 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`✅ Server running on http://localhost:${PORT} (PORT ${PORT})`);
 });
-
 
 
 // import express from "express";
