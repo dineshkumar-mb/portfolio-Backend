@@ -120,7 +120,7 @@ dotenv.config();
 const app = express();
 
 const allowedOrigins = process.env.FRONTEND_ORIGIN
-  ? process.env.FRONTEND_ORIGIN.split(",").map(origin => origin.trim())
+  ? process.env.FRONTEND_ORIGIN.split(",").map(origin => origin.trim().replace(/\/$/, ""))
   : ["https://portfolio-five-chi-11.vercel.app"];
 
 app.use(
@@ -130,10 +130,13 @@ app.use(
       if (!origin) {
         return callback(null, true);
       }
+      // Normalize origin by removing trailing slash for comparison
+      const normalizedOrigin = origin.replace(/\/$/, "");
       // Allow if origin is in allowedOrigins or if allowedOrigins contains "*"
-      if (allowedOrigins.includes("*") || allowedOrigins.includes(origin)) {
+      if (allowedOrigins.includes("*") || allowedOrigins.includes(normalizedOrigin)) {
         callback(null, true);
       } else {
+        console.log(`CORS blocked origin: ${origin}, allowed:`, allowedOrigins);
         callback(new Error("Not allowed by CORS"));
       }
     },
@@ -172,6 +175,15 @@ async function initTransporter() {
 }
 await initTransporter();
 
+// Helper function to send mail with timeout
+function sendMailWithTimeout(mailOptions, timeoutMs = 15000) {
+  const sendPromise = transporter.sendMail(mailOptions);
+  const timeoutPromise = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error("sendMail timeout")), timeoutMs)
+  );
+  return Promise.race([sendPromise, timeoutPromise]);
+}
+
 app.post("/send", async (req, res) => {
   const { name, email, message } = req.body ?? {};
   if (!name || !email || !message) {
@@ -192,7 +204,8 @@ app.post("/send", async (req, res) => {
       text: `Name: ${name}\nEmail: ${email}\n\nMessage:\n${message}`,
     };
 
-    await transporter.sendMail(mailOptions);
+    // Send with timeout to prevent hanging requests
+    await sendMailWithTimeout(mailOptions, 15000);
     console.log("Mail sent successfully");
     return res.status(200).json({ success: true });
   } catch (error) {
