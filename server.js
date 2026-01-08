@@ -121,12 +121,17 @@ const app = express();
 
 const allowedOrigins = process.env.FRONTEND_ORIGIN
   ? process.env.FRONTEND_ORIGIN.split(",").map(origin => origin.trim())
-  : ["*"];
+  : ["https://portfolio-five-chi-11.vercel.app"];
 
 app.use(
   cors({
     origin: function (origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) {
+        return callback(null, true);
+      }
+      // Allow if origin is in allowedOrigins or if allowedOrigins contains "*"
+      if (allowedOrigins.includes("*") || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
         callback(new Error("Not allowed by CORS"));
