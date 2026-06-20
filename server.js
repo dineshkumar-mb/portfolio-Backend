@@ -72,9 +72,9 @@ app.post("/send", async (req, res) => {
   const { name, email, message } = req.body ?? {};
 
   if (!name || !email || !message) {
-    return res.status(400).json({ 
-      success: false, 
-      error: "Missing required fields: name, email, and message are all required." 
+    return res.status(400).json({
+      success: false,
+      error: "Missing required fields: name, email, and message are all required."
     });
   }
 
@@ -88,17 +88,17 @@ app.post("/send", async (req, res) => {
     };
 
     console.log(`📧 Attempting to send email via Nodemailer from ${email}...`);
-    
+
     await transporter.sendMail(mailOptions);
-    
+
     console.log("✅ Email sent successfully");
     return res.status(200).json({ success: true, message: "Message sent successfully!" });
   } catch (error) {
     console.error("❌ Email Error:", error);
-    
-    return res.status(502).json({ 
-      success: false, 
-      error: "Failed to send email. Please try again later." 
+
+    return res.status(502).json({
+      success: false,
+      error: "Failed to send email. Please try again later."
     });
   }
 });
