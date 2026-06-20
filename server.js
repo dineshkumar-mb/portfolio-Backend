@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import sgMail from "@sendgrid/mail";
+import nodemailer from "nodemailer";
 
 dotenv.config();
 
@@ -9,6 +9,7 @@ const app = express();
 
 // --- CORS Configuration ---
 const allowedOrigins = [
+  "*",
   "https://portfolio-five-chi-11.vercel.app",
   "https://dineshkumarfsdportfolio.netlify.app",
   "http://localhost:5173",
@@ -49,13 +50,22 @@ app.use((req, res, next) => {
   next();
 });
 
-// --- SendGrid Setup ---
-if (process.env.SENDGRID_API_KEY) {
-  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-  console.log("✅ SendGrid API Key configured via HTTP (bypasses Render SMTP block)");
-} else {
-  console.warn("⚠️ SENDGRID_API_KEY not set in environment variables");
-}
+// --- Nodemailer Setup ---
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  }
+});
+
+transporter.verify((error, success) => {
+  if (error) {
+    console.warn("⚠️ Nodemailer configuration error:", error);
+  } else {
+    console.log("✅ Nodemailer configured successfully and ready to send emails");
+  }
+});
 
 // ✅ Contact API (POST)
 app.post("/send", async (req, res) => {
@@ -69,31 +79,23 @@ app.post("/send", async (req, res) => {
   }
 
   try {
-    const msg = {
-      to: process.env.EMAIL_USER || process.env.RECEIVER_EMAIL, // Destination email
-      from: process.env.EMAIL_USER, // This MUST be a verified sender in SendGrid
+    const mailOptions = {
+      to: process.env.RECEIVER_EMAIL || process.env.EMAIL_USER, // Destination email
+      from: process.env.EMAIL_USER,
       replyTo: email,
       subject: `Portfolio Contact - Message from ${name}`,
       text: `New message from your portfolio website:\n\nName: ${name}\nEmail: ${email}\n\nMessage:\n${message}`,
     };
 
-    console.log(`📧 Attempting to send email via SendGrid API from ${email}...`);
+    console.log(`📧 Attempting to send email via Nodemailer from ${email}...`);
     
-    await sgMail.send(msg);
+    await transporter.sendMail(mailOptions);
     
     console.log("✅ Email sent successfully");
     return res.status(200).json({ success: true, message: "Message sent successfully!" });
   } catch (error) {
-    console.error("❌ Email Error:", error.response ? error.response.body : error);
+    console.error("❌ Email Error:", error);
     
-    // Check if it's an unverified sender error
-    if (error.response && error.response.body && JSON.stringify(error.response.body).includes("does not match a verified Sender Identity")) {
-      return res.status(500).json({
-        success: false,
-        error: "SendGrid Sender Identity not verified. Please verify your email in SendGrid."
-      });
-    }
-
     return res.status(502).json({ 
       success: false, 
       error: "Failed to send email. Please try again later." 
